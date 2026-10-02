@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cosmic Tetris">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05050f">
+<meta name="format-detection" content="telephone=no">
+<title>Cosmic Tetris - Fundamentos de Cálculo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none; }
+html, body {
+    font-family: 'Space Mono', monospace;
+    background: #05050f; color: #e0e0ff;
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+    height: -webkit-fill-available;
+    width: 100vw;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+#game-container { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.stars { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.star { position: absolute; background: white; border-radius: 50%; animation: twinkle 3s infinite alternate; }
+@keyframes twinkle { 0% { opacity: 0.15; } 100% { opacity: 1; } }
+#nebula { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+    background: radial-gradient(ellipse at 20% 30%, rgba(120,60,200,0.25), transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(200,80,120,0.2), transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(40,80,180,0.15), transparent 60%);
+    animation: nebulaShift 30s infinite alternate; }
+@keyframes nebulaShift { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.1) rotate(3deg); } }
+#main-layout { position: relative; z-index: 10; display: flex; gap: 18px; align-items: flex-start; padding: 12px; max-width: 1100px; width: 100%; justify-content: center; flex-wrap: wrap; }
+#board-wrapper { border: 2px solid #ffcc66; border-radius: 10px; padding: 4px; background: rgba(5,5,20,0.85); box-shadow: 0 0 30px rgba(255,204,102,0.35); transition: box-shadow 0.3s ease; align-self: center; }
+#board { display: block; border-radius: 6px; background: #08081a; max-height: 65vh; max-height: 65dvh; }
+#side-panel { display: flex; flex-direction: column; gap: 10px; min-width: 190px; max-width: 220px; align-self: center; }
+.panel-box { padding: 12px; background: rgba(10,10,30,0.85); border: 1px solid #334; border-radius: 10px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.panel-title { font-size: 0.7rem; color: #88aaff; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+.big-value { font-size: 1.5rem; font-weight: 700; color: #ffcc66; text-shadow: 0 0 10px rgba(255,204,102,0.5); transition: transform 0.2s; }
+.big-value.negative { color: #ff5566; text-shadow: 0 0 10px rgba(255,85,102,0.6); }
+.big-value.positive-flash { animation: greenFlash 0.4s ease; }
+@keyframes greenFlash { 0%,100% { color:#ffcc66; } 50% { color: #66ff99; transform: scale(1.15); } }
+.big-value.negative-flash { animation: redFlash 0.4s ease; }
+@keyframes redFlash { 0%,100% { color:#ffcc66; } 50% { color: #ff3333; transform: scale(1.15); } }
+.next-piece-canvas { display: block; margin: 0 auto; background: #08081a; border-radius: 6px; border: 1px solid #334; }
+.progress-bar { width: 100%; height: 8px; background: #1a1a3a; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #66ff99, #ffcc66); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+#touch-controls { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; padding: 12px; background: rgba(10,10,30,0.85); border: 1px solid #334; border-radius: 14px; align-self: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.touch-row { display: flex; gap: 10px; justify-content: center; }
+.touch-btn { flex: 1; padding: 18px 12px;
+    background: linear-gradient(135deg, rgba(30,30,70,0.9), rgba(50,50,100,0.9));
+    border: 2px solid #556; color: #e0e0ff; font-family: 'Space Mono', monospace;
+    font-size: 1.5rem; font-weight: 700; cursor: pointer; border-radius: 12px;
+    transition: all 0.15s ease; display: flex; align-items: center; justify-content: center;
+    min-height: 65px; touch-action: manipulation; -webkit-user-select: none;
+    -webkit-touch-callout: none; -webkit-appearance: none; appearance: none; }
+.touch-btn:hover { border-color: #ffcc66; box-shadow: 0 0 15px rgba(255,204,102,0.4); }
+.touch-btn:active, .touch-btn.pressed { transform: scale(0.95); border-color: #ffcc66; background: linear-gradient(135deg, rgba(255,204,102,0.3), rgba(200,150,50,0.3)); box-shadow: 0 0 25px rgba(255,204,102,0.7); }
+.touch-btn.rotate { background: linear-gradient(135deg, rgba(60,30,90,0.9), rgba(100,50,150,0.9)); border-color: #9966ff; }
+.touch-btn.rotate:active, .touch-btn.rotate.pressed { border-color: #cc99ff; background: linear-gradient(135deg, rgba(153,102,255,0.4), rgba(100,50,150,0.4)); }
+.touch-btn.drop { background: linear-gradient(135deg, rgba(80,40,10,0.9), rgba(150,80,20,0.9)); border-color: #ff9966; font-size: 1rem; letter-spacing: 3px; padding: 22px 12px; }
+.touch-btn.drop:active, .touch-btn.drop.pressed { border-color: #ffcc66; background: linear-gradient(135deg, rgba(255,153,102,0.4), rgba(200,100,40,0.4)); }
+.btn { background: linear-gradient(135deg, #1a1a3a, #2a2a5a); border: 2px solid #ffcc66; color: #ffcc66;
+    padding: 12px 24px; font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; border-radius: 8px; transition: all 0.3s ease; letter-spacing: 2px;
+    text-transform: uppercase; width: 100%; -webkit-appearance: none; appearance: none;
+    -webkit-user-select: none; touch-action: manipulation; }
+.btn:hover { background: #ffcc66; color: #0a0a1a; transform: translateY(-2px); }
+.btn:active, .btn.pressed { transform: translateY(0) scale(0.98); background: #ffcc66; color: #0a0a1a; }
+#sound-toggle { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); z-index: 50;
+    background: rgba(10,10,30,0.85); border: 2px solid #334; color: #88aaff;
+    width: 44px; height: 44px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-appearance: none; appearance: none; -webkit-user-select: none; touch-action: manipulation; }
+#sound-toggle:hover { border-color: #ffcc66; color: #ffcc66; }
+#sound-toggle:active { transform: scale(0.92); }
+.screen-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(5,5,15,0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    padding: calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.screen-overlay.active { display: flex; }
+.modal { max-width: 680px; width: 100%; max-height: 92vh; max-height: 92dvh; overflow-y: auto; padding: 26px;
+    background: rgba(15,15,40,0.95); border: 2px solid #ffcc66; border-radius: 15px;
+    box-shadow: 0 0 50px rgba(255,204,102,0.3);
+    animation: modalIn 0.5s cubic-bezier(0.34,1.56,0.64,1); text-align: center; -webkit-overflow-scrolling: touch; }
+@keyframes modalIn { from { opacity: 0; transform: scale(0.85) translateY(30px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal-title { font-size: 1.9rem; color: #ffcc66; text-shadow: 0 0 20px rgba(255,204,102,0.5); letter-spacing: 3px; margin-bottom: 15px; }
+.modal-title.win { color: #66ff99; text-shadow: 0 0 30px rgba(102,255,153,0.8); animation: winPulse 1.2s infinite; }
+@keyframes winPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.modal-sub { font-size: 0.95rem; color: #88aaff; line-height: 1.7; margin-bottom: 22px; }
+.credits { margin-top: 18px; padding-top: 14px; border-top: 1px dashed rgba(255,204,102,0.3); font-size: 0.85rem; color: #ffcc66; letter-spacing: 1px; }
+.credits .author-name { color: #66ff99; font-weight: 700; font-size: 1rem; }
+.credits .label { color: #88aaff; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 4px; }
+.question-header { font-size: 0.8rem; color: #ffcc66; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+.question-text { font-size: 1.05rem; color: #e0e0ff; line-height: 1.6; margin-bottom: 18px; text-align: left; }
+.options-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.option-btn { background: rgba(20,20,50,0.8); border: 2px solid #334; color: #e0e0ff;
+    padding: 14px 18px; font-family: 'Space Mono', monospace; font-size: 0.95rem;
+    cursor: pointer; border-radius: 8px; transition: all 0.2s ease; text-align: left;
+    -webkit-appearance: none; appearance: none; -webkit-user-select: none; touch-action: manipulation; }
+.option-btn:hover:not(:disabled) { border-color: #ffcc66; background: rgba(255,204,102,0.1); }
+.option-btn:active:not(:disabled) { transform: scale(0.98); }
+.option-btn.correct { border-color: #66ff99; background: rgba(102,255,153,0.15); color: #66ff99; }
+.option-btn.incorrect { border-color: #ff5566; background: rgba(255,85,102,0.15); color: #ff9999; }
+.option-btn:disabled { cursor: not-allowed; }
+.feedback { padding: 16px 18px; border-radius: 10px; font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px; text-align: left; display: none; }
+.feedback.correct { background: rgba(102,255,153,0.08); border: 1px solid #66ff99; color: #c8ffdc; display: block; }
+.feedback.incorrect { background: rgba(255,85,102,0.08); border: 1px solid #ff5566; color: #ffccd2; display: block; }
+.feedback .fb-title { font-size: 1rem; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.feedback.correct .fb-title { color: #66ff99; }
+.feedback.incorrect .fb-title { color: #ff5566; }
+.feedback .fb-section { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.15); }
+.feedback .fb-section-label { font-size: 0.7rem; color: #ffcc66; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+.feedback .fb-answer { background: rgba(255,204,102,0.1); border-left: 3px solid #ffcc66; padding: 8px 12px; border-radius: 4px; margin-bottom: 8px; color: #ffcc66; font-weight: 700; }
+.feedback .fb-explanation { color: #c8d0e8; font-style: italic; margin-bottom: 6px; }
+.feedback .fb-solution { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; line-height: 1.75; color: #d0d8f0; white-space: pre-line; font-family: 'Space Mono', monospace; }
+.feedback .fb-solution strong { color: #ffcc66; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0; }
+.stat-card { padding: 16px; background: rgba(20,20,50,0.6); border: 1px solid #334; border-radius: 10px; }
+.stat-value { font-size: 1.7rem; font-weight: 700; color: #66ff99; }
+.stat-value.negative { color: #ff5566; }
+.stat-label { font-size: 0.72rem; color: #88aaff; margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+@keyframes flash { 0%, 100% { box-shadow: 0 0 30px rgba(255,204,102,0.35); } 50% { box-shadow: 0 0 70px rgba(102,255,153,0.9); border-color: #66ff99; } }
+#board-wrapper.flash { animation: flash 0.6s ease; }
+.piece-counter { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+.piece-dot { width: 14px; height: 14px; border-radius: 50%; background: #1a1a3a; border: 2px solid #334; transition: all 0.3s; }
+.piece-dot.filled { background: #66ff99; border-color: #66ff99; box-shadow: 0 0 10px rgba(102,255,153,0.6); }
+.keyboard-hint { font-size: 0.7rem; color: #667; line-height: 1.8; text-align: center; padding: 8px; width: 100%; }
+@media (max-width: 750px) {
+    #main-layout { flex-direction: column; align-items: center; gap: 10px; padding: 6px; }
+    #board { max-height: 42vh; max-height: 42dvh; }
+    #side-panel { width: 100%; max-width: 340px; flex-direction: row; flex-wrap: wrap; }
+    .panel-box { flex: 1; min-width: 70px; padding: 8px; }
+    .panel-title { font-size: 0.55rem; }
+    .big-value { font-size: 1rem; }
+    .next-piece-canvas { width: 60px; height: 60px; }
+    .keyboard-hint { display: none; }
+    .modal-title { font-size: 1.4rem; }
+    .feedback .fb-solution { font-size: 0.78rem; }
+}
+@media (max-height: 500px) {
+    #board { max-height: 90vh; max-height: 90dvh; }
+    #main-layout { flex-direction: row; }
+    .panel-box { padding: 6px; }
+    .touch-btn { min-height: 50px; padding: 10px 8px; }
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="nebula"></div>
+    <div class="stars" id="stars"></div>
+    <button id="sound-toggle" title="Sonido">🔊</button>
+
+    <div id="main-layout">
+        <div id="board-wrapper"><canvas id="board" width="300" height="600"></canvas></div>
+        <div id="side-panel">
+            <div class="panel-box">
+                <div class="panel-title">Puntaje / 100</div>
+                <div class="big-value" id="score-display">0</div>
+                <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill" id="score-progress"></div></div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">Siguiente</div>
+                <canvas id="next-canvas" class="next-piece-canvas" width="110" height="110"></canvas>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">Pregunta en</div>
+                <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+                <div class="piece-counter" id="piece-counter"></div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">Nivel</div>
+                <div class="big-value" id="level-display" style="font-size:1.1rem;">1</div>
+            </div>
+            <button class="btn" id="pause-btn" style="padding:10px;">PAUSA</button>
+        </div>
+        <div id="touch-controls">
+            <div class="touch-row">
+                <button class="touch-btn" id="btn-left">◀</button>
+                <button class="touch-btn rotate" id="btn-rotate">↻</button>
+                <button class="touch-btn" id="btn-right">▶</button>
+            </div>
+            <div class="touch-row">
+                <button class="touch-btn drop" id="btn-drop">SOLTAR</button>
+            </div>
+        </div>
+        <div class="keyboard-hint">Teclado: ← → mover · ↑ rotar · ↓ bajar · ESPACIO soltar · P pausa</div>
+    </div>
+</div>
+
+<div class="screen-overlay active" id="start-screen">
+    <div class="modal">
+        <div class="modal-title">COSMIC TETRIS</div>
+        <div class="modal-sub">
+            Acomoda fichas cósmicas y responde preguntas de<br>
+            <span style="color:#ffcc66;">Fundamentos de Cálculo Diferencial</span>.<br><br>
+            <span style="color:#88aaff;">Sistema de puntuación:</span><br>
+            ✓ Respuesta correcta: <span style="color:#66ff99;">+5 puntos</span><br>
+            ✗ Respuesta incorrecta: <span style="color:#ff5566;">−2 puntos</span><br><br>
+            <span style="color:#ffcc66;">🎯 Meta: alcanza 100 puntos para ganar.</span><br>
+            Las preguntas son <span style="color:#88aaff;">INFINITAS</span> hasta que logres los 100 pts.<br>
+            Después de cada pregunta verás la <span style="color:#88aaff;">solución paso a paso</span>.<br>
+            Las líneas completadas solo suben de nivel (aceleran la caída).<br><br>
+            Dificultad: <span style="color:#66ff99;">★ Fácil</span> · <span style="color:#ffcc66;">★★ Media</span> · <span style="color:#ff5566;">★★★ Difícil</span> · <span style="color:#cc66ff;">★★★★ Muy difícil</span><br>
+            <span style="color:#ffcc66;">⚠️ Única forma de perder: que el tablero se llene.</span>
+        </div>
+        <button class="btn" id="start-btn">INICIAR JUEGO</button>
+        <div class="credits">
+            <span class="label">Creado por</span>
+            <span class="author-name" id="author-credit-start">—</span>
+        </div>
+    </div>
+</div>
+
+<div class="screen-overlay" id="question-screen">
+    <div class="modal">
+        <div class="question-header" id="q-header">PREGUNTA</div>
+        <div class="question-text" id="q-text"></div>
+        <div class="options-list" id="q-options"></div>
+        <div class="feedback" id="q-feedback"></div>
+        <button class="btn" id="q-continue" style="display:none;">CONTINUAR</button>
+    </div>
+</div>
+
+<div class="screen-overlay" id="pause-screen">
+    <div class="modal">
+        <div class="modal-title">PAUSA</div>
+        <div class="modal-sub">El cosmos espera...</div>
+        <button class="btn" id="resume-btn">REANUDAR</button>
+        <button class="btn" id="restart-from-pause" style="margin-top:10px;">REINICIAR</button>
+    </div>
+</div>
+
+<div class="screen-overlay" id="gameover-screen">
+    <div class="modal">
+        <div class="modal-title" id="gameover-title">FIN DEL JUEGO</div>
+        <div class="modal-sub" id="gameover-message"></div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value" id="final-score">0</div><div class="stat-label">Puntaje Final</div></div>
+            <div class="stat-card"><div class="stat-value" id="final-lines">0</div><div class="stat-label">Líneas</div></div>
+            <div class="stat-card"><div class="stat-value" id="final-correct">0</div><div class="stat-label">Correctas</div></div>
+            <div class="stat-card"><div class="stat-value" id="final-questions">0</div><div class="stat-label">Preguntas</div></div>
+        </div>
+        <button class="btn" id="restart-btn">VOLVER A JUGAR</button>
+        <div class="credits">
+            <span class="label">Juego creado por</span>
+            <span class="author-name" id="author-credit-end">—</span>
+        </div>
+    </div>
+</div>
+
+<script>
+const AUTOR = 'Lisbet Lopez';
+
+const COLS = 10, ROWS = 20, BLOCK_SIZE = 30;
+const WIN_SCORE = 100;
+const POINTS_CORRECT = 5;
+const POINTS_WRONG = -2;
+
+const boardCanvas = document.getElementById('board');
+const ctx = boardCanvas.getContext('2d');
+const nextCanvas = document.getElementById('next-canvas');
+const nextCtx = nextCanvas.getContext('2d');
+
+(function setupHiDPICanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const boardW = boardCanvas.width, boardH = boardCanvas.height;
+    boardCanvas.width = boardW * dpr;
+    boardCanvas.height = boardH * dpr;
+    boardCanvas.style.width = boardW + 'px';
+    boardCanvas.style.height = boardH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    boardCanvas._logicalW = boardW;
+    boardCanvas._logicalH = boardH;
+    const nextW = nextCanvas.width, nextH = nextCanvas.height;
+    nextCanvas.width = nextW * dpr;
+    nextCanvas.height = nextH * dpr;
+    nextCanvas.style.width = nextW + 'px';
+    nextCanvas.style.height = nextH + 'px';
+    nextCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    nextCanvas._logicalW = nextW;
+    nextCanvas._logicalH = nextH;
+})();
+
+document.getElementById('author-credit-start').textContent = AUTOR;
+document.getElementById('author-credit-end').textContent = AUTOR;
+
+const Sound = {
+    ctx: null, enabled: true, unlocked: false,
+    init() {
+        if (!this.ctx) {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (AC) this.ctx = new AC();
+                else this.enabled = false;
+            } catch (e) { this.enabled = false; }
+        }
+    },
+    unlock() {
+        this.init();
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume().then(() => { this.unlocked = true; }).catch(() => {});
+        } else {
+            this.unlocked = true;
+        }
+        try {
+            const buffer = this.ctx.createBuffer(1, 1, 22050);
+            const src = this.ctx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(this.ctx.destination);
+            src.start(0);
+        } catch (e) {}
+    },
+    play(freq, duration, type = 'square', volume = 0.08) {
+        if (!this.enabled) return;
+        this.init(); if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') { this.ctx.resume().catch(() => {}); }
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+    },
+    move() { this.play(320, 0.05, 'square', 0.05); },
+    rotate() { this.play(520, 0.08, 'triangle', 0.06); },
+    drop() { this.play(180, 0.15, 'sawtooth', 0.08); },
+    lock() { this.play(240, 0.1, 'square', 0.07); },
+    clear() { this.play(660, 0.1, 'triangle', 0.09); setTimeout(() => this.play(880, 0.12, 'triangle', 0.09), 60); setTimeout(() => this.play(1100, 0.15, 'triangle', 0.09), 120); },
+    correct() { this.play(523, 0.12, 'sine', 0.1); setTimeout(() => this.play(659, 0.12, 'sine', 0.1), 100); setTimeout(() => this.play(784, 0.18, 'sine', 0.1), 200); },
+    incorrect() { this.play(220, 0.15, 'sawtooth', 0.1); setTimeout(() => this.play(165, 0.25, 'sawtooth', 0.1), 120); },
+    win() { [523, 659, 784, 1047, 1319].forEach((f, i) => { setTimeout(() => this.play(f, 0.3, 'sine', 0.12), i * 180); }); },
+    gameOver() { [523, 440, 349, 262].forEach((f, i) => setTimeout(() => this.play(f, 0.25, 'triangle', 0.09), i * 180)); },
+    question() { this.play(440, 0.1, 'sine', 0.08); setTimeout(() => this.play(660, 0.15, 'sine', 0.08), 100); }
+};
+
+['touchstart','touchend','mousedown','click','keydown'].forEach(ev => {
+    document.addEventListener(ev, () => Sound.unlock(), { once: true, passive: true });
+});
+
+document.getElementById('sound-toggle').addEventListener('click', (e) => {
+    Sound.unlock();
+    Sound.enabled = !Sound.enabled;
+    e.currentTarget.textContent = Sound.enabled ? '🔊' : '🔇';
+});
+
+const PIECES = {
+    I: { name: 'Cometa',    color: '#66ccff', glow: 'rgba(102,204,255,0.6)', shape: [[1,1,1,1]] },
+    O: { name: 'Luna',      color: '#e0e0e0', glow: 'rgba(224,224,224,0.6)', shape: [[1,1],[1,1]] },
+    T: { name: 'Nebulosa',  color: '#ff66cc', glow: 'rgba(255,102,204,0.6)', shape: [[0,1,0],[1,1,1]] },
+    S: { name: 'Galaxia',   color: '#66ff99', glow: 'rgba(102,255,153,0.6)', shape: [[0,1,1],[1,1,0]] },
+    Z: { name: 'Agujero Negro', color: '#ff6666', glow: 'rgba(255,102,102,0.6)', shape: [[1,1,0],[0,1,1]] },
+    J: { name: 'Planeta',   color: '#9966ff', glow: 'rgba(153,102,255,0.6)', shape: [[1,0,0],[1,1,1]] },
+    L: { name: 'Estrella',  color: '#ffcc66', glow: 'rgba(255,204,102,0.6)', shape: [[0,0,1],[1,1,1]] }
+};
+const PIECE_KEYS = Object.keys(PIECES);
+
+const QUESTION_BANK = [
+    { diff: 1, q: 'La distancia entre (0,0) y (3,4) es:', options: ['5', '7', '12'], correct: 0,
+      explanation: 'd = √(3² + 4²) = √25 = 5.',
+      solution: 'd = √[(3−0)² + (4−0)²]\nd = √(9 + 16) = √25\nd = 5\n\nRespuesta: 5' },
+    { diff: 1, q: 'El intervalo [2, 5) significa:', options: ['2 ≤ x < 5', '2 < x ≤ 5', '2 ≤ x ≤ 5'], correct: 0,
+      explanation: 'Corchete incluye, paréntesis excluye.',
+      solution: '[ ] → se incluye el extremo.\n( ) → NO se incluye.\n\n[2, 5) → 2 ≤ x < 5\n\nRespuesta: 2 ≤ x < 5' },
+    { diff: 1, q: '¿Cuál es el valor de 2⁰?', options: ['1', '0', '2'], correct: 0,
+      explanation: 'a⁰ = 1 para a ≠ 0.', solution: 'Regla: a⁰ = 1 si a ≠ 0.\n\n2⁰ = 1\n\nRespuesta: 1' },
+    { diff: 1, q: 'El inverso aditivo de 8 es:', options: ['-8', '1/8', '8'], correct: 0,
+      explanation: 'a + (−a) = 0.', solution: 'Inverso aditivo de a es −a:\n8 + (−8) = 0 ✓\n\nRespuesta: −8' },
+    { diff: 1, q: '¿Cuál es el valor de sen(30°)?', options: ['1/2', '√3/2', '√2/2'], correct: 0,
+      explanation: 'sen(30°) = 1/2.', solution: 'Valores notables: sen(30°) = 1/2.\n\nRespuesta: 1/2' },
+    { diff: 1, q: '¿Cuál es el valor de cos(60°)?', options: ['1/2', '√3/2', '√2/2'], correct: 0,
+      explanation: 'cos(60°) = 1/2.', solution: 'cos(60°) = 1/2.\n\nRespuesta: 1/2' },
+    { diff: 1, q: 'La ecuación x² + y² = 25 representa:', options: ['Circunferencia de radio 5', 'Elipse', 'Parábola'], correct: 0,
+      explanation: 'x² + y² = r², circunferencia de radio r.', solution: 'x² + y² = 25 → r² = 25 → r = 5.\n\nRespuesta: Circunferencia de radio 5' },
+
+    { diff: 2, q: 'Si f(x) = x² + 1, entonces f(3) =', options: ['10', '7', '9'], correct: 0,
+      explanation: 'f(3) = 9 + 1 = 10.', solution: 'f(3) = 3² + 1 = 9 + 1 = 10.\n\nRespuesta: 10' },
+    { diff: 2, q: 'Dominio de f(x) = √(x − 5):', options: ['x ≥ 5', 'x > 5', 'x ≤ 5'], correct: 0,
+      explanation: 'Radicando ≥ 0.', solution: 'x − 5 ≥ 0 → x ≥ 5\n\nRespuesta: x ≥ 5' },
+    { diff: 2, q: 'Dominio de f(x) = 1/(x − 2):', options: ['x ≠ 2', 'x > 2', 'x ≥ 2'], correct: 0,
+      explanation: 'Denominador ≠ 0.', solution: 'x − 2 ≠ 0 → x ≠ 2\n\nRespuesta: x ≠ 2' },
+    { diff: 2, q: 'Pendiente de la recta por (1,2) y (3,8):', options: ['3', '2', '6'], correct: 0,
+      explanation: 'm = (8−2)/(3−1) = 3.', solution: 'm = (y₂ − y₁)/(x₂ − x₁) = 6/2 = 3\n\nRespuesta: 3' },
+    { diff: 2, q: 'Punto medio entre (2,4) y (6,8):', options: ['(4, 6)', '(2, 2)', '(8, 12)'], correct: 0,
+      explanation: 'Promedios de coordenadas.', solution: 'M = ((2+6)/2, (4+8)/2) = (4, 6)\n\nRespuesta: (4, 6)' },
+    { diff: 2, q: 'Ecuación punto-pendiente de la recta por (x₁, y₁) con pendiente m:',
+      options: ['y − y₁ = m(x − x₁)', 'y = mx + b', 'Ax + By + C = 0'], correct: 0,
+      explanation: 'Forma punto-pendiente.', solution: 'y − y₁ = m(x − x₁)\n\nRespuesta: y − y₁ = m(x − x₁)' },
+    { diff: 2, q: 'Si f(x) = 2x + 1 y g(x) = x², entonces f(g(2)) =', options: ['9', '5', '25'], correct: 0,
+      explanation: 'g(2) = 4, f(4) = 9.', solution: 'g(2) = 4\nf(4) = 2(4) + 1 = 9\n\nRespuesta: 9' },
+    { diff: 2, q: 'Si f(x) = x + 2, g(x) = 3x, entonces (g∘f)(x) =', options: ['3x + 6', '3x + 2', 'x + 6'], correct: 0,
+      explanation: 'g(f(x)) = 3(x+2).', solution: '(g∘f)(x) = g(x+2) = 3(x+2) = 3x + 6\n\nRespuesta: 3x + 6' },
+    { diff: 2, q: 'Si f(x) = 3x − 6, entonces f⁻¹(x) =', options: ['(x+6)/3', '(x−6)/3', '3x + 6'], correct: 0,
+      explanation: 'Despejar x de y = 3x − 6.', solution: 'y = 3x − 6 → x = (y+6)/3\nf⁻¹(x) = (x+6)/3\n\nRespuesta: (x+6)/3' },
+    { diff: 2, q: 'Función PAR si:', options: ['f(−x) = f(x)', 'f(−x) = −f(x)', 'f(x) = 0'], correct: 0,
+      explanation: 'Simetría respecto al eje y.', solution: 'f es PAR si f(−x) = f(x).\n\nRespuesta: f(−x) = f(x)' },
+    { diff: 2, q: 'y = −f(x) gráficamente es:', options: ['Reflexión sobre eje x', 'Reflexión sobre eje y', 'Desplazamiento'], correct: 0,
+      explanation: 'Cambia signo de y.', solution: 'y = −f(x): reflexión en eje x.\n\nRespuesta: reflexión sobre eje x' },
+    { diff: 2, q: 'y = f(x − c), c > 0 es:', options: ['Desplaza c unidades a la derecha', 'Desplaza c a la izquierda', 'Refleja'], correct: 0,
+      explanation: 'x → x−c mueve a la derecha.', solution: 'y = f(x − c) → desplaza a la derecha c unidades.\n\nRespuesta: derecha' },
+    { diff: 2, q: 'Simplifica: (x³)²', options: ['x⁶', 'x⁵', 'x⁹'], correct: 0,
+      explanation: '(aᵐ)ⁿ = aᵐ·ⁿ.', solution: '(x³)² = x⁶\n\nRespuesta: x⁶' },
+    { diff: 2, q: 'Simplifica: 3⁵ / 3²', options: ['3³ = 27', '3⁷', '1'], correct: 0,
+      explanation: 'aᵐ/aⁿ = aᵐ⁻ⁿ.', solution: '3⁵ / 3² = 3³ = 27\n\nRespuesta: 3³ = 27' },
+    { diff: 2, q: 'Evalúa 8^(2/3):', options: ['4', '16', '2'], correct: 0,
+      explanation: 'Exponente racional.', solution: '8^(2/3) = (∛8)² = 2² = 4\n\nRespuesta: 4' },
+    { diff: 2, q: '¿Cuál es el valor de log₂(32)?', options: ['5', '4', '6'], correct: 0,
+      explanation: '2⁵ = 32.', solution: 'log₂(32) = 5\n\nRespuesta: 5' },
+    { diff: 2, q: 'logₐ(xy) =', options: ['logₐ(x) + logₐ(y)', 'logₐ(x)·logₐ(y)', 'logₐ(x) − logₐ(y)'], correct: 0,
+      explanation: 'Ley del producto.', solution: 'logₐ(xy) = logₐ(x) + logₐ(y)\n\nRespuesta: logₐ(x) + logₐ(y)' },
+    { diff: 2, q: 'logₐ(x/y) =', options: ['logₐ(x) − logₐ(y)', 'logₐ(x)/logₐ(y)', 'logₐ(x) + logₐ(y)'], correct: 0,
+      explanation: 'Ley del cociente.', solution: 'logₐ(x/y) = logₐ(x) − logₐ(y)\n\nRespuesta: logₐ(x) − logₐ(y)' },
+
+    { diff: 3, q: 'lim(x→2) (x² − x + 2) =', options: ['4', '2', '8'], correct: 0,
+      explanation: 'Sustitución directa en polinomio.', solution: '2² − 2 + 2 = 4\n\nRespuesta: 4' },
+    { diff: 3, q: 'El límite fundamental lim(x→0) sen(x)/x =', options: ['1', '0', 'No existe'], correct: 0,
+      explanation: 'Límite fundamental trigonométrico.', solution: 'lim(x→0) sen(x)/x = 1 (x en radianes).\n\nRespuesta: 1' },
+    { diff: 3, q: 'El límite de una suma es:', options: ['La suma de los límites', 'El producto', 'El mayor'], correct: 0,
+      explanation: 'Ley de suma.', solution: 'lim[f + g] = lim f + lim g\n\nRespuesta: suma de los límites' },
+    { diff: 3, q: 'El límite de un producto es:', options: ['lim f · lim g', 'lim f + lim g', 'lim f / lim g'], correct: 0,
+      explanation: 'Ley del producto.', solution: 'lim[f·g] = [lim f] · [lim g]\n\nRespuesta: lim f · lim g' },
+    { diff: 3, q: 'f es continua en x = a si:', options: ['lim(x→a) f(x) = f(a)', 'f(a) = 0', 'lim f = 0'], correct: 0,
+      explanation: 'Límite = valor de la función.', solution: 'Continuidad: lim(x→a) f(x) = f(a)\n\nRespuesta: lim(x→a) f(x) = f(a)' },
+    { diff: 3, q: 'x = a es asíntota vertical de y = f(x) si:', options: ['lim(x→a) f(x) = ±∞', 'lim(x→∞) f = a', 'f(a) = 0'], correct: 0,
+      explanation: 'Explosión al acercarse a a.', solution: 'lim(x→a) f(x) = ±∞\n\nRespuesta: lim(x→a) f(x) = ±∞' },
+    { diff: 3, q: 'Pendiente de la tangente a y = x² en (1,1):', options: ['2', '1', '0'], correct: 0,
+      explanation: 'y′ = 2x.', solution: 'y′ = 2x → y′(1) = 2\n\nRespuesta: 2' },
+    { diff: 3, q: 'Si s(t) = 4.9t², la velocidad promedio entre t = 5 y t = 5.1 es:',
+      options: ['≈ 49.49 m/s', '25 m/s', '10 m/s'], correct: 0,
+      explanation: '[s(5.1) − s(5)]/0.1.',
+      solution: 's(5) = 122.5\ns(5.1) = 127.449\nv̄ = 4.949/0.1 ≈ 49.49 m/s\n\nRespuesta: ≈ 49.49 m/s' },
+    { diff: 3, q: 'Fórmula cuadrática:', options: ['x = (−b ± √(b²−4ac))/(2a)', 'x = (b ± √(b²−4ac))/(2a)', 'x = (−b ± √(b²+4ac))/(2a)'], correct: 0,
+      explanation: 'Forma estándar correcta.', solution: 'x = (−b ± √(b²−4ac))/(2a)\n\nRespuesta: la primera.' },
+    { diff: 3, q: 'Si D = b² − 4ac > 0, la cuadrática tiene:', options: ['2 soluciones reales distintas', '1 solución', '0 soluciones reales'], correct: 0,
+      explanation: 'Discriminante positivo.', solution: 'D > 0 → dos raíces reales distintas.\n\nRespuesta: 2 soluciones reales distintas' },
+    { diff: 3, q: 'Al completar cuadrado en x² + bx, se suma:', options: ['(b/2)²', 'b²', '(b/4)²'], correct: 0,
+      explanation: 'Cuadrado de la mitad.', solution: 'x² + bx + (b/2)² = (x + b/2)²\n\nRespuesta: (b/2)²' },
+    { diff: 3, q: 'f es IMPAR si:', options: ['f(−x) = −f(x)', 'f(−x) = f(x)', 'f(x) = 1'], correct: 0,
+      explanation: 'Simetría respecto al origen.', solution: 'f(−x) = −f(x). Ejemplo: x³.\n\nRespuesta: f(−x) = −f(x)' },
+    { diff: 3, q: 'y = f(−x) gráficamente:', options: ['Reflexión sobre eje y', 'Reflexión sobre eje x', 'Desplazamiento'], correct: 0,
+      explanation: 'x → −x.', solution: 'Refleja sobre el eje y.\n\nRespuesta: reflexión sobre eje y' },
+    { diff: 3, q: 'Dominio de arcsen(x):', options: ['[−1, 1]', '(−∞, ∞)', '[0, π]'], correct: 0,
+      explanation: 'Rango del seno.', solution: 'Rango de sen: [−1,1] → dominio de arcsen: [−1,1].\n\nRespuesta: [−1, 1]' },
+    { diff: 3, q: 'Rango de arcsen(x):', options: ['[−π/2, π/2]', '[0, π]', '(−π, π)'], correct: 0,
+      explanation: 'Restricción del seno.', solution: 'Rango: [−π/2, π/2]\n\nRespuesta: [−π/2, π/2]' },
+    { diff: 3, q: '|x| < c equivale a:', options: ['−c < x < c', 'x < −c o x > c', 'x > c'], correct: 0,
+      explanation: 'Distancia a 0 menor que c.', solution: '−c < x < c\n\nRespuesta: −c < x < c' },
+    { diff: 3, q: '|x| > c equivale a:', options: ['x < −c o x > c', '−c < x < c', 'x > c'], correct: 0,
+      explanation: 'Distancia mayor que c.', solution: 'x < −c o x > c\n\nRespuesta: x < −c o x > c' },
+    { diff: 3, q: 'log₅(8) usando cambio de base ≈', options: ['1.2920', '0.7739', '0.6021'], correct: 0,
+      explanation: 'ln(8)/ln(5).', solution: 'ln(8)/ln(5) ≈ 2.0794/1.6094 ≈ 1.2920\n\nRespuesta: ≈ 1.2920' },
+
+    { diff: 4, q: 'lim(x→2) (x² + x − 6)/(x − 2) =', options: ['5', '0 (indeterminado)', 'No existe'], correct: 0,
+      explanation: 'Factorizar: (x+3)(x−2)/(x−2) = x+3 → 5.',
+      solution: '0/0 indeterminado.\nFactorizar: (x+3)(x−2)/(x−2) = x + 3\nlim = 5\n\nRespuesta: 5' },
+    { diff: 4, q: 'lim(x→0) (√(x+4) − 2)/x =', options: ['1/4', '0 (indeterminado)', 'No existe'], correct: 0,
+      explanation: 'Racionalizar el numerador.',
+      solution: '0/0.\nMultiplicar por conjugado:\n1/(√(x+4)+2) → 1/(2+2) = 1/4\n\nRespuesta: 1/4' },
+    { diff: 4, q: 'lim(x→3⁻) 2x/(x − 3) =', options: ['−∞', '+∞', '0'], correct: 0,
+      explanation: 'Numerador → 6; denominador → 0⁻.', solution: '6 / (0⁻) = −∞\n\nRespuesta: −∞' },
+    { diff: 4, q: 'lim(x→3⁺) 2x/(x − 3) =', options: ['+∞', '−∞', '6'], correct: 0,
+      explanation: 'Numerador → 6; denominador → 0⁺.', solution: '6 / (0⁺) = +∞\n\nRespuesta: +∞' },
+    { diff: 4, q: 'La recta x = 3 es asíntota vertical de f(x) = 2x/(x − 3) porque:',
+      options: ['lim(x→3⁻) = −∞ y lim(x→3⁺) = +∞', 'f(3) = 0', 'lim(x→∞) = 2'], correct: 0,
+      explanation: 'Comportamiento explosivo en x = 3.', solution: 'Laterales → ±∞.\n\nRespuesta: los dos laterales explotan' },
+    { diff: 4, q: 'Dada f(x) = { x² si x ≤ 1 ; 2x + 1 si x > 1 }. ¿Es continua en x = 1?',
+      options: ['No, límite lateral izquierdo = 1, derecho = 3', 'Sí', 'Solo por la derecha'], correct: 0,
+      explanation: 'Laterales distintos → no continua.',
+      solution: 'lim(x→1⁻) = 1\nlim(x→1⁺) = 3\n1 ≠ 3 → NO continua.\n\nRespuesta: No' },
+    { diff: 4, q: 'Si f(x) = 1/(x − 2) y g(x) = √x, dominio de (f∘g)(x) = 1/(√x − 2):',
+      options: ['x ≥ 0 y x ≠ 4', 'x > 0', 'x ≠ 4'], correct: 0,
+      explanation: 'Radicando ≥ 0 y denominador ≠ 0.',
+      solution: '1) √x → x ≥ 0\n2) √x ≠ 2 → x ≠ 4\nDominio: [0,4) ∪ (4,∞)\n\nRespuesta: x ≥ 0 y x ≠ 4' },
+    { diff: 4, q: 'Resolver |2x − 5| ≥ 7:', options: ['x ≤ −1 o x ≥ 6', '−1 ≤ x ≤ 6', 'x ≥ 6'], correct: 0,
+      explanation: 'Por definición de |·| ≥ c.',
+      solution: '2x − 5 ≥ 7 → x ≥ 6\n2x − 5 ≤ −7 → x ≤ −1\n\nRespuesta: x ≤ −1 o x ≥ 6' },
+    { diff: 4, q: 'Resolver x² − 5x + 6 ≤ 0:', options: ['2 ≤ x ≤ 3', 'x ≤ 2 o x ≥ 3', 'x ≥ 3'], correct: 0,
+      explanation: 'Factorizar y analizar signos.',
+      solution: '(x−2)(x−3) ≤ 0 → [2, 3]\n\nRespuesta: 2 ≤ x ≤ 3' },
+    { diff: 4, q: 'Resolver log₂(x − 3) + log₂(x) = 2 (con x > 3):', options: ['x = 4', 'x = −1', 'x = 0'], correct: 0,
+      explanation: 'Producto = 4.',
+      solution: 'log₂((x−3)x) = 2\n(x−3)x = 4\nx² − 3x − 4 = 0\n(x−4)(x+1) = 0\nx = 4 (x>3)\n\nRespuesta: x = 4' },
+    { diff: 4, q: 'Inversa de f(x) = (2x + 1)/(x − 3):',
+      options: ['f⁻¹(x) = (3x + 1)/(x − 2)', 'f⁻¹(x) = (x + 1)/(x − 3)', 'f⁻¹(x) = (x − 3)/(2x + 1)'], correct: 0,
+      explanation: 'Despejar x.',
+      solution: 'y(x−3) = 2x+1\nyx−2x = 3y+1\nx = (3y+1)/(y−2)\nf⁻¹(x) = (3x+1)/(x−2)\n\nRespuesta: f⁻¹(x) = (3x + 1)/(x − 2)' },
+    { diff: 4, q: 'Rango de f(x) = x² − 4x + 7:', options: ['[3, ∞)', '(−∞, 3]', '[7, ∞)'], correct: 0,
+      explanation: 'Completar cuadrado.',
+      solution: '(x−2)² + 3 ≥ 3 → Rango [3, ∞)\n\nRespuesta: [3, ∞)' },
+    { diff: 4, q: 'Pendiente de la tangente a y = x² en x = 3 (por límite):', options: ['6', '3', '9'], correct: 0,
+      explanation: 'lim(h→0) [(3+h)² − 9]/h.',
+      solution: '[(3+h)² − 9]/h = 6 + h → 6\n\nRespuesta: 6' },
+    { diff: 4, q: 'lim(x→∞) (3x² + 2x − 1)/(x² − 5) =', options: ['3', '0', '∞'], correct: 0,
+      explanation: 'Dividir por x².',
+      solution: '(3 + 2/x − 1/x²)/(1 − 5/x²) → 3\n\nRespuesta: 3' },
+    { diff: 4, q: 'lim(x→2) (x² − 4)/(x² − 3x + 2) =', options: ['4', '0', 'No existe'], correct: 0,
+      explanation: 'Factorizar y cancelar (x−2).',
+      solution: '(x−2)(x+2)/((x−2)(x−1)) = (x+2)/(x−1) → 4\n\nRespuesta: 4' },
+    { diff: 4, q: 'Si f(x) = x² y g(x) = x + 3, dominio de (f/g)(x) = x²/(x+3):',
+      options: ['x ≠ −3', 'x > −3', 'x ≥ 0'], correct: 0,
+      explanation: 'Denominador ≠ 0.', solution: 'x + 3 ≠ 0 → x ≠ −3\n\nRespuesta: x ≠ −3' },
+    { diff: 4, q: 'lim(x→0⁺) ln(x) =', options: ['−∞', '+∞', '0'], correct: 0,
+      explanation: 'Logaritmo cerca de 0.',
+      solution: 'ln(0.01) = −4.61, ln(0.001) = −6.91 → −∞\n\nRespuesta: −∞' },
+    { diff: 4, q: 'La recta y = 2 es asíntota HORIZONTAL de f(x) = (2x + 1)/x si:',
+      options: ['lim(x→∞) f(x) = 2', 'f(0) = 2', 'lim(x→0) f = 2'], correct: 0,
+      explanation: 'A.H. cuando x → ±∞.',
+      solution: 'lim(2 + 1/x) = 2 → A.H. y = 2\n\nRespuesta: lim(x→∞) f(x) = 2' },
+    { diff: 4, q: 'Dado f(x) = x³ + 2, ¿es par, impar o ninguna?',
+      options: ['Ninguna de las dos', 'Par', 'Impar'], correct: 0,
+      explanation: 'f(−x) = −x³ + 2 ≠ ±f(x).',
+      solution: 'f(−x) = −x³+2\nNo es par ni impar.\n\nRespuesta: Ninguna' },
+    { diff: 4, q: 'Factorizar completamente x³ + x² + 4x + 4:', options: ['(x² + 4)(x + 1)', '(x + 4)(x² + 1)', '(x + 1)³'], correct: 0,
+      explanation: 'Agrupación.',
+      solution: 'x²(x+1) + 4(x+1) = (x²+4)(x+1)\n\nRespuesta: (x² + 4)(x + 1)' },
+    { diff: 4, q: 'Simplifica (x² − 1)/(x² + x − 2):', options: ['(x + 1)/(x + 2)', '(x − 1)/(x + 2)', '(x + 1)/(x − 2)'], correct: 0,
+      explanation: 'Factorizar.',
+      solution: '(x−1)(x+1)/((x+2)(x−1)) = (x+1)/(x+2)\n\nRespuesta: (x+1)/(x+2)' },
+    { diff: 4, q: 'Discriminante de 4x² − 12x + 9 = 0:',
+      options: ['D = 0 → una solución real: x = 3/2', 'D > 0 → dos soluciones', 'D < 0 → sin solución real'], correct: 0,
+      explanation: 'D = 144 − 144 = 0.',
+      solution: 'D = 144 − 144 = 0\nx = 12/8 = 3/2\n\nRespuesta: D = 0, x = 3/2' },
+    { diff: 4, q: 'Si D < 0 para ax² + bx + c = 0:', options: ['Sin solución real (raíces complejas)', 'Dos reales distintas', 'Una real doble'], correct: 0,
+      explanation: '√D no real.',
+      solution: 'D < 0 → sin raíces reales.\n\nRespuesta: Sin solución real' },
+    { diff: 4, q: 'Resolver x² ≤ 9:', options: ['−3 ≤ x ≤ 3', 'x ≤ 3', 'x ≥ 3 o x ≤ −3'], correct: 0,
+      explanation: 'x² ≤ 9 ⇔ |x| ≤ 3.',
+      solution: '−3 ≤ x ≤ 3\n\nRespuesta: −3 ≤ x ≤ 3' },
+    { diff: 4, q: 'Resolver (x − 1)/(x + 2) > 0:', options: ['x < −2 o x > 1', '−2 < x < 1', 'x > 1'], correct: 0,
+      explanation: 'Signos en la recta.',
+      solution: 'Intervalos:\n(−∞,−2): +\n(−2,1): −\n(1,∞): +\n\nRespuesta: x < −2 o x > 1' },
+    { diff: 4, q: 'lim(h→0) [(x + h)² − x²]/h =', options: ['2x', 'x', '0'], correct: 0,
+      explanation: 'Definición de derivada.',
+      solution: '(2xh + h²)/h = 2x + h → 2x\n\nRespuesta: 2x' },
+    { diff: 4, q: '¿Qué función NO es 1-a-1 en todo ℝ?', options: ['f(x) = x²', 'f(x) = x³', 'f(x) = x + 1'], correct: 0,
+      explanation: 'x² no pasa la prueba de recta horizontal.',
+      solution: 'x²: f(2) = f(−2) = 4 → no 1-a-1.\n\nRespuesta: f(x) = x²' },
+    { diff: 4, q: 'Dominio de f para que x² tenga inversa:', options: ['x ≥ 0 (restringido)', 'x ∈ ℝ', 'x ≠ 0'], correct: 0,
+      explanation: 'Restringir para 1-a-1.',
+      solution: 'Restringir a x ≥ 0 → f⁻¹(x) = √x.\n\nRespuesta: x ≥ 0' },
+    { diff: 4, q: 'lim(x→1) (x³ − 1)/(x − 1) =', options: ['3', '1', '0/0'], correct: 0,
+      explanation: 'x³−1 = (x−1)(x²+x+1).',
+      solution: 'x² + x + 1 → 1+1+1 = 3\n\nRespuesta: 3' },
+    { diff: 4, q: 'Si s(t) = t² + 3t, velocidad promedio en [2, 5]:',
+      options: ['10 m/s', '14 m/s', '7 m/s'], correct: 0,
+      explanation: '[s(5) − s(2)]/3.',
+      solution: '(40 − 10)/3 = 10 m/s\n\nRespuesta: 10 m/s' },
+    { diff: 4, q: 'Rango de f(x) = 1/x:', options: ['ℝ \\ {0}', 'ℝ', '[0, ∞)'], correct: 0,
+      explanation: '1/x nunca es 0.', solution: 'Rango: y ≠ 0\n\nRespuesta: ℝ \\ {0}' },
+    { diff: 4, q: 'Simplificar (a⁻² b³)/(a b⁻¹):', options: ['b⁴/a³', 'a³ b⁴', 'b²/a'], correct: 0,
+      explanation: 'a⁻³ · b⁴.',
+      solution: 'a⁻²⁻¹ · b³⁺¹ = a⁻³ b⁴ = b⁴/a³\n\nRespuesta: b⁴/a³' },
+    { diff: 4, q: 'Si f(x) = 2x + 5, f(f(1)) =', options: ['19', '7', '12'], correct: 0,
+      explanation: 'Doble aplicación.',
+      solution: 'f(1) = 7\nf(7) = 19\n\nRespuesta: 19' },
+    { diff: 4, q: 'Dominio de f(x) = √(x − 2)/(x − 5):', options: ['x ≥ 2 y x ≠ 5', 'x ≥ 2', 'x ≠ 5'], correct: 0,
+      explanation: 'Radicando y denominador.',
+      solution: 'x ≥ 2 y x ≠ 5\n\nRespuesta: x ≥ 2 y x ≠ 5' },
+    { diff: 4, q: '¿f(x) = x³/(x² + 1) es par, impar o ninguna?', options: ['Impar', 'Par', 'Ninguna'], correct: 0,
+      explanation: 'f(−x) = −f(x).',
+      solution: 'f(−x) = −x³/(x²+1) = −f(x) → IMPAR\n\nRespuesta: Impar' },
+    { diff: 4, q: 'lim(x→0) (1 − cos(x))/x² =', options: ['1/2', '0', '1'], correct: 0,
+      explanation: 'Límite trigonométrico estándar.',
+      solution: 'Límite clásico = 1/2\n\nRespuesta: 1/2' },
+    { diff: 4, q: 'lim(x→∞) (2x³ − x)/(5x³ + 3x²) =', options: ['2/5', '0', '∞'], correct: 0,
+      explanation: 'Dividir entre x³.',
+      solution: '(2 − 1/x²)/(5 + 3/x) → 2/5\n\nRespuesta: 2/5' },
+    { diff: 4, q: 'Si f(x) = √(x + 3), dominio de f⁻¹:', options: ['[0, ∞)', '[3, ∞)', 'ℝ'], correct: 0,
+      explanation: 'Dominio f⁻¹ = rango f.', solution: 'Rango de f = [0, ∞)\n\nRespuesta: [0, ∞)' },
+    { diff: 4, q: 'La gráfica de y = (x − 2)² + 3 es:',
+      options: ['Parábola con vértice en (2, 3)', 'Parábola con vértice en (0, 0)', 'Recta'], correct: 0,
+      explanation: 'Forma vértice.',
+      solution: 'Vértice (2, 3)\n\nRespuesta: (2, 3)' },
+    { diff: 4, q: 'Soluciones de x² + 4x − 1 = 0:', options: ['x = −2 ± √5', 'x = 2 ± √5', 'x = −4 ± √5'], correct: 0,
+      explanation: 'D = 20, √D = 2√5.',
+      solution: 'x = (−4 ± 2√5)/2 = −2 ± √5\n\nRespuesta: x = −2 ± √5' },
+    { diff: 4, q: 'lim(x→1⁺) ln(x − 1) =', options: ['−∞', '+∞', '0'], correct: 0,
+      explanation: 'Argumento → 0⁺.', solution: 'ln(0⁺) = −∞\n\nRespuesta: −∞' },
+    { diff: 4, q: 'Dominio de f(x) = ln(x − 2):', options: ['x > 2', 'x ≥ 2', 'x ≠ 2'], correct: 0,
+      explanation: 'Argumento > 0.', solution: 'x − 2 > 0 → x > 2\n\nRespuesta: x > 2' },
+    { diff: 4, q: 'Si f(x) = |x|, f(−3) + f(3) =', options: ['6', '0', '3'], correct: 0,
+      explanation: 'Ambos dan 3.', solution: '3 + 3 = 6\n\nRespuesta: 6' },
+    { diff: 4, q: 'Vértice de f(x) = x² − 6x + 5:', options: ['(3, −4)', '(−3, 4)', '(6, 5)'], correct: 0,
+      explanation: 'Completar cuadrado.',
+      solution: '(x−3)² − 4 → vértice (3, −4)\n\nRespuesta: (3, −4)' }
+];
+
+const state = {
+    board: [], current: null, next: null,
+    score: 0, lines: 0, level: 1,
+    piecesPlaced: 0, piecesUntilQuestion: 2,
+    questionsAnswered: 0, correctAnswers: 0, wrongAnswers: 0,
+    gameOver: false, paused: false, gameActive: false,
+    dropInterval: null, dropSpeed: 500,
+    questionActive: false, currentQuestion: null,
+    usedQuestions: [],
+    won: false
+};
+
+function createBoard() { return Array.from({ length: ROWS }, () => Array(COLS).fill(null)); }
+
+function getRandomPiece() {
+    const key = PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)];
+    const p = PIECES[key];
+    return { key, name: p.name, color: p.color, glow: p.glow, shape: p.shape.map(r => [...r]), x: Math.floor((COLS - p.shape[0].length) / 2), y: 0 };
+}
+function rotateShape(shape) {
+    const rows = shape.length, cols = shape[0].length;
+    const rot = Array.from({ length: cols }, () => Array(rows).fill(0));
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) rot[x][rows - 1 - y] = shape[y][x];
+    return rot;
+}
+function collides(shape, offX, offY) {
+    for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+            if (!shape[y][x]) continue;
+            const bx = offX + x, by = offY + y;
+            if (bx < 0 || bx >= COLS || by >= ROWS) return true;
+            if (by >= 0 && state.board[by][bx]) return true;
+        }
+    }
+    return false;
+}
+function movePiece(dx, dy) {
+    if (!state.current || state.questionActive || state.paused || state.gameOver) return false;
+    const nx = state.current.x + dx, ny = state.current.y + dy;
+    if (!collides(state.current.shape, nx, ny)) {
+        state.current.x = nx; state.current.y = ny;
+        if (dx !== 0) Sound.move();
+        draw();
+        return true;
+    }
+    if (dy > 0) lockPiece();
+    return false;
+}
+function rotateCurrent() {
+    if (!state.current || state.questionActive || state.paused || state.gameOver) return;
+    const rot = rotateShape(state.current.shape);
+    for (let off of [0, -1, 1, -2, 2]) {
+        if (!collides(rot, state.current.x + off, state.current.y)) {
+            state.current.shape = rot; state.current.x += off;
+            Sound.rotate(); draw(); return;
+        }
+    }
+}
+function hardDrop() {
+    if (!state.current || state.questionActive || state.paused || state.gameOver) return;
+    while (!collides(state.current.shape, state.current.x, state.current.y + 1)) state.current.y++;
+    Sound.drop(); lockPiece();
+}
+function lockPiece() {
+    if (!state.current) return;
+    for (let y = 0; y < state.current.shape.length; y++) {
+        for (let x = 0; x < state.current.shape[y].length; x++) {
+            if (state.current.shape[y][x]) {
+                const by = state.current.y + y, bx = state.current.x + x;
+                if (by >= 0) state.board[by][bx] = { color: state.current.color, glow: state.current.glow };
+            }
+        }
+    }
+    Sound.lock();
+    state.piecesPlaced++;
+    clearLines();
+    spawnNewPiece();
+    updateUI();
+    if (state.piecesPlaced >= state.piecesUntilQuestion && !state.gameOver) {
+        state.piecesPlaced = 0;
+        state.piecesUntilQuestion = Math.random() < 0.5 ? 2 : 3;
+        setTimeout(triggerQuestion, 350);
+    }
+}
+function clearLines() {
+    let cleared = 0;
+    for (let y = ROWS - 1; y >= 0; y--) {
+        if (state.board[y].every(c => c !== null)) {
+            state.board.splice(y, 1); state.board.unshift(Array(COLS).fill(null));
+            cleared++; y++;
+        }
+    }
+    if (cleared > 0) {
+        state.lines += cleared;
+        state.level = Math.floor(state.lines / 10) + 1;
+        state.dropSpeed = Math.max(80, 500 - (state.level - 1) * 50);
+        restartDropInterval();
+        const w = document.getElementById('board-wrapper');
+        w.classList.add('flash');
+        setTimeout(() => w.classList.remove('flash'), 600);
+        Sound.clear(); updateUI();
+    }
+}
+function spawnNewPiece() {
+    if (state.next) state.current = state.next;
+    else state.current = getRandomPiece();
+    state.next = getRandomPiece();
+    state.current.x = Math.floor((COLS - state.current.shape[0].length) / 2);
+    state.current.y = 0;
+    if (collides(state.current.shape, state.current.x, state.current.y)) { endGame(false); return; }
+    drawNext(); draw();
+}
+function drawBlock(c, x, y, color, glow, size = BLOCK_SIZE) {
+    c.fillStyle = color;
+    c.shadowColor = glow || color; c.shadowBlur = 12;
+    c.fillRect(x + 1, y + 1, size - 2, size - 2);
+    c.shadowBlur = 0;
+    const grad = c.createLinearGradient(x, y, x + size, y + size);
+    grad.addColorStop(0, 'rgba(255,255,255,0.35)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.25)');
+    c.fillStyle = grad;
+    c.fillRect(x + 1, y + 1, size - 2, size - 2);
+}
+function drawGridLines() {
+    ctx.strokeStyle = 'rgba(40,40,70,0.5)'; ctx.lineWidth = 0.5;
+    for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x*BLOCK_SIZE,0); ctx.lineTo(x*BLOCK_SIZE,ROWS*BLOCK_SIZE); ctx.stroke(); }
+    for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0,y*BLOCK_SIZE); ctx.lineTo(COLS*BLOCK_SIZE,y*BLOCK_SIZE); ctx.stroke(); }
+}
+function draw() {
+    const W = boardCanvas._logicalW || boardCanvas.width;
+    const H = boardCanvas._logicalH || boardCanvas.height;
+    ctx.fillStyle = '#08081a'; ctx.fillRect(0,0,W,H);
+    drawGridLines();
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
+        if (state.board[y][x]) drawBlock(ctx, x*BLOCK_SIZE, y*BLOCK_SIZE, state.board[y][x].color, state.board[y][x].glow);
+    if (state.current) {
+        let ghostY = state.current.y;
+        while (!collides(state.current.shape, state.current.x, ghostY + 1)) ghostY++;
+        ctx.globalAlpha = 0.2;
+        for (let y = 0; y < state.current.shape.length; y++) for (let x = 0; x < state.current.shape[y].length; x++)
+            if (state.current.shape[y][x]) drawBlock(ctx, (state.current.x+x)*BLOCK_SIZE, (ghostY+y)*BLOCK_SIZE, state.current.color, state.current.glow);
+        ctx.globalAlpha = 1;
+        for (let y = 0; y < state.current.shape.length; y++) for (let x = 0; x < state.current.shape[y].length; x++)
+            if (state.current.shape[y][x]) drawBlock(ctx, (state.current.x+x)*BLOCK_SIZE, (state.current.y+y)*BLOCK_SIZE, state.current.color, state.current.glow);
+    }
+}
+function drawNext() {
+    const W = nextCanvas._logicalW || nextCanvas.width;
+    const H = nextCanvas._logicalH || nextCanvas.height;
+    nextCtx.fillStyle = '#08081a'; nextCtx.fillRect(0,0,W,H);
+    if (!state.next) return;
+    const s = state.next.shape;
+    const size = Math.min(22, Math.floor(W / (s[0].length + 1)));
+    const ox = (W - s[0].length * size) / 2;
+    const oy = (H - s.length * size) / 2;
+    for (let y = 0; y < s.length; y++) for (let x = 0; x < s[y].length; x++)
+        if (s[y][x]) drawBlock(nextCtx, ox+x*size, oy+y*size, state.next.color, state.next.glow, size);
+}
+function getRandomQuestion() {
+    const avail = QUESTION_BANK.filter((_, i) => !state.usedQuestions.includes(i));
+    if (avail.length === 0) { state.usedQuestions = []; return getRandomQuestion(); }
+    const roll = Math.random();
+    let targetDiff;
+    if (roll < 0.20) targetDiff = 1;
+    else if (roll < 0.55) targetDiff = 2;
+    else if (roll < 0.85) targetDiff = 3;
+    else targetDiff = 4;
+    let pool = avail.filter(q => q.diff === targetDiff);
+    if (pool.length === 0) pool = avail;
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    state.usedQuestions.push(QUESTION_BANK.indexOf(q));
+    return q;
+}
+function shuffleQuestion(q) {
+    const correctText = q.options[q.correct];
+    const shuffled = [...q.options];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const newCorrectIndex = shuffled.indexOf(correctText);
+    return { q: q.q, options: shuffled, correct: newCorrectIndex, correctText, explanation: q.explanation, solution: q.solution, diff: q.diff };
+}
+function triggerQuestion() {
+    if (state.gameOver || state.questionActive) return;
+    if (state.score >= WIN_SCORE) return;
+    state.questionActive = true;
+    const baseQ = getRandomQuestion();
+    state.currentQuestion = shuffleQuestion(baseQ);
+    Sound.question();
+    showQuestion(state.currentQuestion);
+}
+function showQuestion(q) {
+    const diffLabel = q.diff === 1 ? '★ FÁCIL' : q.diff === 2 ? '★★ MEDIA' : q.diff === 3 ? '★★★ DIFÍCIL' : '★★★★ MUY DIFÍCIL';
+    document.getElementById('q-header').textContent =
+        `PREGUNTA ${state.questionsAnswered + 1} · ${diffLabel} · ✓ +5 / ✗ −2 · Pts: ${state.score}/100`;
+    document.getElementById('q-text').textContent = q.q;
+    const list = document.getElementById('q-options');
+    list.innerHTML = '';
+    const fb = document.getElementById('q-feedback');
+    fb.className = 'feedback'; fb.style.display = 'none'; fb.innerHTML = '';
+    document.getElementById('q-continue').style.display = 'none';
+    q.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => answerQuestion(idx, q));
+        list.appendChild(btn);
+    });
+    document.getElementById('question-screen').classList.add('active');
+}
+function answerQuestion(selectedIdx, q) {
+    const btns = document.getElementById('q-options').querySelectorAll('.option-btn');
+    const isCorrect = selectedIdx === q.correct;
+    btns.forEach((b, i) => {
+        b.disabled = true;
+        if (i === q.correct) b.classList.add('correct');
+        if (i === selectedIdx && i !== q.correct) b.classList.add('incorrect');
+    });
+    state.questionsAnswered++;
+    const scoreDisplay = document.getElementById('score-display');
+    if (isCorrect) {
+        state.correctAnswers++;
+        state.score += POINTS_CORRECT;
+        Sound.correct();
+        scoreDisplay.classList.remove('negative-flash');
+        void scoreDisplay.offsetWidth;
+        scoreDisplay.classList.add('positive-flash');
+        setTimeout(() => scoreDisplay.classList.remove('positive-flash'), 400);
+    } else {
+        state.wrongAnswers++;
+        state.score += POINTS_WRONG;
+        Sound.incorrect();
+        scoreDisplay.classList.remove('positive-flash');
+        void scoreDisplay.offsetWidth;
+        scoreDisplay.classList.add('negative-flash');
+        setTimeout(() => scoreDisplay.classList.remove('negative-flash'), 400);
+    }
+    updateUI();
+    const fb = document.getElementById('q-feedback');
+    fb.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+    fb.innerHTML = `
+        <div class="fb-title">${isCorrect ? '✓ ¡Correcto! +5 puntos' : '✗ Incorrecto · −2 puntos'}</div>
+        <div class="fb-section"><span class="fb-section-label">Respuesta correcta</span><div class="fb-answer">${q.correctText}</div></div>
+        <div class="fb-section"><span class="fb-section-label">¿Por qué?</span><div class="fb-explanation">${q.explanation}</div></div>
+        <div class="fb-section"><span class="fb-section-label">📝 Solución paso a paso</span><div class="fb-solution">${q.solution}</div></div>`;
+    fb.style.display = 'block';
+    document.getElementById('q-continue').style.display = 'block';
+    if (state.score >= WIN_SCORE) {
+        document.getElementById('q-continue').onclick = () => { closeQuestion(); setTimeout(() => endGame(true), 400); };
+    } else {
+        document.getElementById('q-continue').onclick = closeQuestion;
+    }
+}
+function closeQuestion() {
+    document.getElementById('question-screen').classList.remove('active');
+    state.questionActive = false;
+    state.currentQuestion = null;
+    updatePieceCounter();
+    if (!state.gameOver) draw();
+}
+function updatePieceCounter() {
+    const c = document.getElementById('piece-counter');
+    c.innerHTML = '';
+    for (let i = 0; i < state.piecesUntilQuestion; i++) {
+        const d = document.createElement('div');
+        d.className = 'piece-dot' + (i < state.piecesPlaced ? ' filled' : '');
+        c.appendChild(d);
+    }
+    document.getElementById('progress-fill').style.width = ((state.piecesPlaced / state.piecesUntilQuestion) * 100) + '%';
+}
+function updateUI() {
+    const sd = document.getElementById('score-display');
+    sd.textContent = state.score;
+    sd.classList.toggle('negative', state.score < 0);
+    document.getElementById('level-display').textContent = state.level;
+    const pct = Math.max(0, Math.min(100, (state.score / WIN_SCORE) * 100));
+    document.getElementById('score-progress').style.width = pct + '%';
+    updatePieceCounter();
+}
+function restartDropInterval() {
+    if (state.dropInterval) clearInterval(state.dropInterval);
+    if (!state.gameActive || state.gameOver) return;
+    state.dropInterval = setInterval(() => {
+        if (!state.paused && !state.questionActive && !state.gameOver) movePiece(0, 1);
+    }, state.dropSpeed);
+}
+document.addEventListener('keydown', (e) => {
+    if (!state.gameActive || state.gameOver || state.questionActive) return;
+    switch (e.key) {
+        case 'ArrowLeft': e.preventDefault(); movePiece(-1, 0); break;
+        case 'ArrowRight': e.preventDefault(); movePiece(1, 0); break;
+        case 'ArrowDown': e.preventDefault(); movePiece(0, 1); break;
+        case 'ArrowUp': e.preventDefault(); rotateCurrent(); break;
+        case ' ': e.preventDefault(); hardDrop(); break;
+        case 'p': case 'P': togglePause(); break;
+    }
+});
+function setupHoldButton(el, action, interval = 90) {
+    let timeout = null, rep = null;
+    const start = (e) => {
+        e.preventDefault();
+        el.classList.add('pressed');
+        if (state.paused || state.gameOver || state.questionActive) return;
+        action();
+        timeout = setTimeout(() => { rep = setInterval(action, interval); }, 220);
+    };
+    const stop = (e) => {
+        if (e) e.preventDefault();
+        el.classList.remove('pressed');
+        if (timeout) clearTimeout(timeout);
+        if (rep) clearInterval(rep);
+        timeout = null; rep = null;
+    };
+    el.addEventListener('touchstart', start, { passive: false });
+    el.addEventListener('touchend', stop, { passive: false });
+    el.addEventListener('touchcancel', stop, { passive: false });
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', stop);
+    el.addEventListener('mouseleave', stop);
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+setupHoldButton(document.getElementById('btn-left'), () => movePiece(-1, 0), 80);
+setupHoldButton(document.getElementById('btn-right'), () => movePiece(1, 0), 80);
+
+(function() {
+    const btn = document.getElementById('btn-rotate');
+    let lastRotate = 0;
+    const doRotate = (e) => {
+        e.preventDefault();
+        const now = Date.now();
+        if (now - lastRotate < 100) return;
+        lastRotate = now;
+        rotateCurrent();
+    };
+    btn.addEventListener('touchstart', doRotate, { passive: false });
+    btn.addEventListener('click', doRotate);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+})();
+
+(function() {
+    const btn = document.getElementById('btn-drop');
+    const doDrop = (e) => { e.preventDefault(); hardDrop(); };
+    btn.addEventListener('touchstart', doDrop, { passive: false });
+    btn.addEventListener('click', doDrop);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+})();
+
+document.getElementById('pause-btn').addEventListener('contextmenu', (e) => e.preventDefault());
+document.getElementById('sound-toggle').addEventListener('contextmenu', (e) => e.preventDefault());
+
+function togglePause() {
+    if (state.gameOver || state.questionActive) return;
+    state.paused = !state.paused;
+    document.getElementById('pause-screen').classList.toggle('active', state.paused);
+}
+function endGame(won) {
+    state.gameOver = true;
+    state.gameActive = false;
+    state.won = won;
+    if (state.dropInterval) clearInterval(state.dropInterval);
+    const titleEl = document.getElementById('gameover-title');
+    const msgEl = document.getElementById('gameover-message');
+    if (won) {
+        Sound.win();
+        titleEl.classList.add('win');
+        titleEl.textContent = '¡MISIÓN CUMPLIDA!';
+        msgEl.innerHTML = `¡Alcanzaste los <span style="color:#66ff99; font-weight:bold;">100 puntos</span>!<br>
+            Preguntas contestadas: <span style="color:#ffcc66;">${state.questionsAnswered}</span><br>
+            Aciertos: <span style="color:#66ff99;">${state.correctAnswers}</span> ·
+            Errores: <span style="color:#ff5566;">${state.wrongAnswers}</span><br><br>
+            ¡Dominas los fundamentos de Cálculo!`;
+    } else {
+        Sound.gameOver();
+        titleEl.textContent = 'FIN DEL JUEGO';
+        titleEl.classList.remove('win');
+        msgEl.innerHTML = `El tablero se llenó antes de alcanzar los 100 puntos.<br>
+            Puntaje final: <span style="color:#ffcc66;font-weight:bold;">${state.score} / 100</span><br>
+            ¡Sigue practicando!`;
+    }
+    const fs = document.getElementById('final-score');
+    fs.textContent = `${state.score} / 100`;
+    fs.classList.toggle('negative', state.score < 0);
+    document.getElementById('final-lines').textContent = state.lines;
+    document.getElementById('final-correct').textContent = state.correctAnswers;
+    document.getElementById('final-questions').textContent = state.questionsAnswered;
+    document.getElementById('gameover-screen').classList.add('active');
+}
+function startGame() {
+    Sound.unlock();
+    state.board = createBoard();
+    state.current = null; state.next = null;
+    state.score = 0; state.lines = 0; state.level = 1;
+    state.piecesPlaced = 0; state.piecesUntilQuestion = 2;
+    state.questionsAnswered = 0; state.correctAnswers = 0; state.wrongAnswers = 0;
+    state.gameOver = false; state.paused = false; state.gameActive = true;
+    state.questionActive = false; state.currentQuestion = null;
+    state.usedQuestions = []; state.dropSpeed = 500;
+    state.won = false;
+    if (state.dropInterval) clearInterval(state.dropInterval);
+    document.querySelectorAll('.screen-overlay').forEach(s => s.classList.remove('active'));
+    document.getElementById('final-score').classList.remove('negative');
+    document.getElementById('gameover-title').classList.remove('win');
+    document.getElementById('q-continue').onclick = closeQuestion;
+    Sound.init();
+    state.next = getRandomPiece();
+    spawnNewPiece();
+    updateUI();
+    restartDropInterval();
+    draw();
+}
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+document.getElementById('restart-from-pause').addEventListener('click', startGame);
+document.getElementById('resume-btn').addEventListener('click', togglePause);
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+function createStars() {
+    const c = document.getElementById('stars');
+    c.innerHTML = '';
+    for (let i = 0; i < 180; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        const sz = Math.random() * 2.5 + 0.5;
+        s.style.width = sz + 'px'; s.style.height = sz + 'px';
+        s.style.left = Math.random() * 100 + '%';
+        s.style.top = Math.random() * 100 + '%';
+        s.style.animationDelay = Math.random() * 3 + 's';
+        s.style.animationDuration = (Math.random() * 2 + 2) + 's';
+        c.appendChild(s);
+    }
+}
+createStars();
+state.board = createBoard();
+draw();
+
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+}, { passive: false });
+document.addEventListener('touchmove', (e) => {
+    if (!e.target.closest('.screen-overlay')) e.preventDefault();
+}, { passive: false });
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && state.gameActive && !state.paused && !state.questionActive && !state.gameOver) {
+        togglePause();
+    }
+});
+</script>
+</body>
+</html>
